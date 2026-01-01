@@ -147,19 +147,19 @@ impl Lexer {
                         self.lex_mode = LexMode::IntLiteralMode;
                     }
 
-                } else if c == tokenlist::DECIMAL_CHAR { // convert to float when decimal detected
+                } else if c == tokenlist::DECIMAL_CHAR && self.lex_mode == LexMode::IntLiteralMode {
 
-                    if self.lex_mode == LexMode::IntLiteralMode {
                         self.lex_mode = LexMode::FloatLiteralMode;
-                    } else if self.lex_mode == LexMode::FloatLiteralMode {
+
+                } else if c == tokenlist::DECIMAL_CHAR && self.lex_mode == LexMode::FloatLiteralMode {
+
                         return Err(self.raise_error(SyntaxErrorType::UnknownTypeError(DataType::Float64)));
-                    }
                     
                 } else if tokenlist::OPS_SINGLE_CHAR.contains(&c) { // when its a non quotes operator that can be tokenized
 
                     self.lex_mode = LexMode::OpOrPuncMode;
 
-                } else if c.is_alphanumeric() || c == tokenlist::UNDERSCORE { //when a valid identifier character
+                } else if c.is_ascii_alphanumeric() || c == tokenlist::UNDERSCORE { //when a valid identifier character
 
                     self.lex_mode = LexMode::WordMode;
 
