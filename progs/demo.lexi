@@ -3,8 +3,10 @@ func main() -> ~ {
 	var int16 y = x+2;
 	println("{y}") ;
 
+	obj.qty = 6.14;
+
 	var int16 z = 3;
 	var ch = 'a';
 	print("Hello, \\ world! My \"age\" is:") ;
-	println("{z + y * 2}") ;
+	println("{}", z + y * 2) ;
 }

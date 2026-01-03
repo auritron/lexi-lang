@@ -96,6 +96,10 @@ impl Lexer {
 
         }
 
+        if self.lex_mode == LexMode::StringMode {
+            return Err(self.raise_error(SyntaxErrorType::UnTermStrLitError));
+        }
+
         self.tokens.push(Token::EOF);
         Ok(self.tokens.clone())
 
@@ -229,7 +233,6 @@ impl Lexer {
             LexMode::StringMode => match &self.lex_mode {
                 LexMode::StringMode => self.lex_state = LexState::PushChar,
                 LexMode::QuotesMode(false) => self.lex_state = LexState::EmitAndPush,
-                LexMode::NullMode => self.lex_state = { return Err(self.raise_error(SyntaxErrorType::UnTermStrLitError)); },
                 _ => self.panic(),
             },
 
