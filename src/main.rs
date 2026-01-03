@@ -13,7 +13,7 @@ fn main() {
     match lexer.tokenize(contents) {
         Ok(t) => token_list = t,
         Err(e) => {
-            eprint!("{}", e);
+            eprintln!("{}", e);
             std::process::exit(1);
         },
     }
