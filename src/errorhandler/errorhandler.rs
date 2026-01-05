@@ -13,11 +13,13 @@ impl Display for PreRuntimeError {
 }
 
 impl Display for PreRuntimeErrorType {
+
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             PreRuntimeErrorType::SyntaxError(err) => write!(f, "{}", err),
         }
     }
+    
 }
 
 impl Display for SyntaxErrorType {
@@ -47,6 +49,9 @@ impl Display for SyntaxErrorType {
             },
             SyntaxErrorType::UnknownEscapeSeqError => {
                 write!(f, "Unknown escape sequence detected,")
+            },
+            SyntaxErrorType::StrFmtSyntaxError => {
+                write!(f, "Incorrect syntax for string formatting,")
             },
         }
     }

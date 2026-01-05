@@ -11,7 +11,7 @@ pub enum LexMode {
     CommentMode, //comments
     IntLiteralMode, //integer datatypes
     FloatLiteralMode, //float datatypes
-    OpOrPuncMode, //operators and punctuators
+    OpOrPuncMode(bool), //operators and punctuators, false for not yet detected paired op, true for detected paired op
     QuotesMode(bool), //specifically for quotations, both single and double, true is opening and false is closing
     WordMode, //alphanumerical tokens, incl. boolean literals
     NullMode, //whitespace and chars
@@ -25,8 +25,8 @@ impl Display for LexMode {
             Self::CommentMode => { write!(f, "CommentMode") },
             Self::IntLiteralMode => { write!(f, "IntLiteralMode") },
             Self::FloatLiteralMode => { write!(f, "FloatLiteralMode") },
-            Self::OpOrPuncMode => { write!(f, "OpOrPuncMode") },
-            Self::QuotesMode(q) => { write!(f, "QuotesMode({})", q) },
+            Self::OpOrPuncMode(val) => { write!(f, "OpOrPuncMode({})", val) },
+            Self::QuotesMode(val) => { write!(f, "QuotesMode({})", val) },
             Self::WordMode => { write!(f, "WordMode") },
             Self::NullMode => { write!(f, "NullMode") },
             Self::UnknownMode => { write!(f, "UnknownMode") },
@@ -159,9 +159,20 @@ impl Lexer {
 
                         return Err(self.raise_error(SyntaxErrorType::UnknownTypeError(DataType::Float64)));
                     
-                } else if tokenlist::OPS_SINGLE_CHAR.contains(&c) { // when its a non quotes operator that can be tokenized
-
-                    self.lex_mode = LexMode::OpOrPuncMode;
+                } else if tokenlist::OPS_AND_PUNCS_CHARS.contains(&c) { // when its a non quotes operator that can be tokenized
+                    
+                    match self.lex_mode {
+                        LexMode::OpOrPuncMode(_) => {
+                            let mut s = self.buffer.to_string();
+                            s.push(c);
+                            if tokenlist::OPS_AND_PUNCS.contains_key(s.as_str()) {
+                                self.lex_mode = LexMode::OpOrPuncMode(true);
+                            } else {
+                                self.lex_mode = LexMode::OpOrPuncMode(false);
+                            }
+                        },
+                        _ => { self.lex_mode = LexMode::OpOrPuncMode(false); },
+                    }
 
                 } else if c.is_ascii_alphanumeric() || c == tokenlist::UNDERSCORE { //when a valid identifier character
 
@@ -192,26 +203,26 @@ impl Lexer {
             LexMode::WordMode => match &self.lex_mode {
                 LexMode::WordMode => self.lex_state = LexState::PushChar,
                 LexMode::NullMode | LexMode::CommentMode => self.lex_state = LexState::EmitToken,
-                LexMode::QuotesMode(true) | LexMode::OpOrPuncMode => self.lex_state = LexState::EmitAndPush,
+                LexMode::QuotesMode(true) | LexMode::OpOrPuncMode(false) => self.lex_state = LexState::EmitAndPush,
                 LexMode::UnknownMode => { return Err(self.raise_error(SyntaxErrorType::UnknownCharError)); },
-                LexMode::IntLiteralMode | LexMode::FloatLiteralMode | LexMode::StringMode | LexMode::QuotesMode(false) => self.panic(),
+                LexMode::IntLiteralMode | LexMode::FloatLiteralMode | LexMode::StringMode | LexMode::QuotesMode(false) | LexMode::OpOrPuncMode(true) => self.panic(),
             },
 
             // num literal modes
             LexMode::IntLiteralMode | LexMode::FloatLiteralMode => match &self.lex_mode {
                 LexMode::WordMode | LexMode::IntLiteralMode | LexMode::FloatLiteralMode => self.lex_state = LexState::PushChar,
                 LexMode::NullMode | LexMode::CommentMode => self.lex_state = LexState::EmitToken,
-                LexMode::QuotesMode(true) | LexMode::OpOrPuncMode => self.lex_state = LexState::EmitAndPush,
+                LexMode::QuotesMode(true) | LexMode::OpOrPuncMode(false) => self.lex_state = LexState::EmitAndPush,
                 LexMode::UnknownMode => { return Err(self.raise_error(SyntaxErrorType::UnknownCharError)); },
-                LexMode::StringMode | LexMode::QuotesMode(false) => self.panic(),
+                LexMode::StringMode | LexMode::QuotesMode(false) | LexMode::OpOrPuncMode(true) => self.panic(),
             },
 
             //closing quotes mode
             LexMode::QuotesMode(false) => match &self.lex_mode {
                 LexMode::NullMode | LexMode::CommentMode => self.lex_state = LexState::EmitToken,
-                LexMode::OpOrPuncMode | LexMode::QuotesMode(true) | LexMode::WordMode | LexMode::IntLiteralMode | LexMode::FloatLiteralMode => self.lex_state = LexState::EmitAndPush,
+                LexMode::OpOrPuncMode(false) | LexMode::QuotesMode(true) | LexMode::WordMode | LexMode::IntLiteralMode | LexMode::FloatLiteralMode => self.lex_state = LexState::EmitAndPush,
                 LexMode::UnknownMode => { return Err(self.raise_error(SyntaxErrorType::UnknownCharError)); },
-                LexMode::QuotesMode(false) | LexMode::StringMode => self.panic(),
+                LexMode::QuotesMode(false) | LexMode::StringMode | LexMode::OpOrPuncMode(true) => self.panic(),
             },
 
             //opening quotes mode
@@ -221,10 +232,10 @@ impl Lexer {
             },
 
             //operation and punctuation mode
-            LexMode::OpOrPuncMode => match &self.lex_mode {
-                LexMode::OpOrPuncMode=> self.lex_state = LexState::PushChar,
+            LexMode::OpOrPuncMode(_) => match &self.lex_mode {
+                LexMode::OpOrPuncMode(true) => self.lex_state = LexState::PushChar,
                 LexMode::NullMode | LexMode::CommentMode => self.lex_state = LexState::EmitToken,
-                LexMode::WordMode | LexMode::QuotesMode(true) | LexMode::IntLiteralMode | LexMode::FloatLiteralMode => self.lex_state = LexState::EmitAndPush,
+                LexMode::WordMode | LexMode::QuotesMode(true) | LexMode::IntLiteralMode | LexMode::FloatLiteralMode | LexMode::OpOrPuncMode(false) => self.lex_state = LexState::EmitAndPush,
                 LexMode::UnknownMode => { return Err(self.raise_error(SyntaxErrorType::UnknownCharError)); },
                 LexMode::StringMode | LexMode::QuotesMode(false) => self.panic(),
             },
@@ -239,9 +250,9 @@ impl Lexer {
             //nullmode - whitespace type characters
             LexMode::NullMode => match &self.lex_mode {
                 LexMode::NullMode | LexMode::CommentMode => self.lex_state = LexState::Idle,
-                LexMode::WordMode | LexMode::IntLiteralMode | LexMode::FloatLiteralMode | LexMode::OpOrPuncMode | LexMode::QuotesMode(true) => self.lex_state = LexState::PushChar,
+                LexMode::WordMode | LexMode::IntLiteralMode | LexMode::FloatLiteralMode | LexMode::OpOrPuncMode(false) | LexMode::QuotesMode(true) => self.lex_state = LexState::PushChar,
                 LexMode::UnknownMode => { return Err(self.raise_error(SyntaxErrorType::UnknownCharError)); },
-                LexMode::StringMode | LexMode::QuotesMode(false) => self.panic(),
+                LexMode::StringMode | LexMode::QuotesMode(false) | LexMode::OpOrPuncMode(true) => self.panic(),
             },
 
             //comment mode, ignores everything
@@ -296,9 +307,8 @@ impl Lexer {
                 else if let Some(boolean_token) = tokenlist::BOOL_VALUES.get(self.buffer.as_str()) { self.tokens.push(boolean_token.clone()); }
                 else { self.tokens.push(Token::Identifier(self.buffer.clone())); }
             },
-            LexMode::OpOrPuncMode => {
-                if let Some(single_op) = tokenlist::OPS_SINGLE.get(self.buffer.as_str()) { self.tokens.push(single_op.clone()); }
-                else if let Some(paired_op) = tokenlist::OPS_PAIRED.get(self.buffer.as_str()) { self.tokens.push(paired_op.clone()); }
+            LexMode::OpOrPuncMode(_) => {
+                if let Some(op) = tokenlist::OPS_AND_PUNCS.get(self.buffer.as_str()) { self.tokens.push(op.clone()); }
                 else { return Err(self.raise_error(SyntaxErrorType::InvalidOperationError)); }
             },
             LexMode::QuotesMode(_) => {

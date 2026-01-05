@@ -1,8 +1,1 @@
-var int16 x = 5;
-var int16 y = x+2;
-println("{y}") ;
-
-var int16 z = 3;
-var ch = 'a';
-print("Hello, \\ world! My \"age\" is:") ;
-println("{z + y * 2}") ;
+%%&^>*

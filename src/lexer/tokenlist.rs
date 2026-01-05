@@ -86,6 +86,28 @@ pub enum DataType {
 
 }
 
+impl std::fmt::Display for DataType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            DataType::Int8 => "int8",
+            DataType::Int16 => "int16",
+            DataType::Int32 => "int32",
+            DataType::Int64 => "int64",
+            DataType::UInt8 => "uint8",
+            DataType::UInt16 => "uint16",
+            DataType::UInt32 => "uint32",
+            DataType::UInt64 => "uint64",
+            DataType::Float32 => "float32",
+            DataType::Float64 => "float64",
+            DataType::Bool => "bool",
+            DataType::Char => "char",
+            DataType::Str => "str",
+            DataType::Void => "~",
+        };
+        write!(f, "{s}")
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum OpType {
 
@@ -113,6 +135,13 @@ pub enum OpType {
     ShiftLeft,  // <<
     ShiftRight, // >>
 
+    //assignment
+    Assign,        // =
+    PlusAssign,    // +=
+    SubAssign,     // -=
+    MulAssign,     // *=
+    DivAssign,     // /=
+
     // comparison
     Equal,      // ==
     NotEqual,   // !=
@@ -121,9 +150,12 @@ pub enum OpType {
     GTEq,       // >=
     LTEq,       // <=
 
+    // format
+    FmtOpen,    // {
+    FmtClose,   // }
+
     // punctuations and symbols
     Period,        // .
-    Assign,        // =
     Arrow,         // ->
     Colon,         // :
     Semicolon,     // ;
@@ -184,12 +216,14 @@ pub static DATATYPES: LazyLock<HashMap<&'static str, Token>> = LazyLock::new(|| 
     map
 });
 
-pub static OPS_SINGLE_CHAR: LazyLock<HashSet<char>> = LazyLock::new(|| {
-    HashSet::from(['+', '-', '*', '/', '%', '|', '&', '^', '!', '<', '>', '.', ':', ';', ',', '=', '`', '(', ')', '[', ']', '{', '}', '~' ])
+pub static OPS_AND_PUNCS_CHARS: LazyLock<HashSet<char>> = LazyLock::new(|| {
+    HashSet::from(['+', '/', '%', '|', '&', '^', '-', '*', '!', '>', '<', '~', '.', ':', ';', ',', '(', ')', '{', '}', '[', ']', '=', '`'])
 });
 
-pub static OPS_SINGLE: LazyLock<HashMap<&'static str, Token>> = LazyLock::new(|| {
+pub static OPS_AND_PUNCS: LazyLock<HashMap<&'static str, Token>> = LazyLock::new(|| {
     let mut map = HashMap::new();
+
+    //single 
 
     //operations
     map.insert("+", Token::Operator(OpType::Plus));
@@ -203,7 +237,7 @@ pub static OPS_SINGLE: LazyLock<HashMap<&'static str, Token>> = LazyLock::new(||
     map.insert("!", Token::Operator(OpType::BitNot));
     map.insert(">", Token::Operator(OpType::Greater));
     map.insert("<", Token::Operator(OpType::Lesser));
-    map.insert("~", Token::DataType(DataType::Void));
+    map.insert("~", Token::DataType(DataType::Void)); //exception
 
     //punctuations
     map.insert(".", Token::Operator(OpType::Period));
@@ -219,11 +253,7 @@ pub static OPS_SINGLE: LazyLock<HashMap<&'static str, Token>> = LazyLock::new(||
     map.insert("=", Token::Operator(OpType::Assign));
     map.insert("`", Token::Operator(OpType::BackTick));
 
-    map
-});
-
-pub static OPS_PAIRED: LazyLock<HashMap<&'static str, Token>> = LazyLock::new(|| {
-    let mut map = HashMap::new();
+    //paired
 
     //operations
     map.insert("**", Token::Operator(OpType::Exp));
@@ -237,6 +267,10 @@ pub static OPS_PAIRED: LazyLock<HashMap<&'static str, Token>> = LazyLock::new(||
     map.insert("<=", Token::Operator(OpType::LTEq));
     map.insert("<<", Token::Operator(OpType::ShiftLeft));
     map.insert(">>", Token::Operator(OpType::ShiftRight));
+    map.insert("+=", Token::Operator(OpType::PlusAssign));
+    map.insert("-=", Token::Operator(OpType::SubAssign));
+    map.insert("*=", Token::Operator(OpType::MulAssign));
+    map.insert("/=", Token::Operator(OpType::DivAssign));
     
     //punctuations
     map.insert("->", Token::Operator(OpType::Arrow));
@@ -253,6 +287,7 @@ pub static ESCAPE_SEQ: LazyLock<HashMap<char, char>> = LazyLock::new(|| {
     let mut map = HashMap::new();
 
     map.insert('\\', '\\');
+    map.insert('$', '$');
     map.insert('"', '\"');
     map.insert('n', '\n');
     map.insert('r', '\r');
@@ -278,25 +313,5 @@ pub const STR_QUOTES: char = '"';
 pub const COMMENT_CHAR: char = '#';
 pub const DECIMAL_CHAR: char = '.';
 pub const UNDERSCORE: char = '_';
-
-impl std::fmt::Display for DataType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            DataType::Int8 => "int8",
-            DataType::Int16 => "int16",
-            DataType::Int32 => "int32",
-            DataType::Int64 => "int64",
-            DataType::UInt8 => "uint8",
-            DataType::UInt16 => "uint16",
-            DataType::UInt32 => "uint32",
-            DataType::UInt64 => "uint64",
-            DataType::Float32 => "float32",
-            DataType::Float64 => "float64",
-            DataType::Bool => "bool",
-            DataType::Char => "char",
-            DataType::Str => "str",
-            DataType::Void => "~",
-        };
-        write!(f, "{s}")
-    }
-}
+pub const FMT_OPEN: char = '{';
+pub const FMT_CLOSE: char = '}';

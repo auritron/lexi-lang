@@ -22,6 +22,7 @@ pub enum SyntaxErrorType {
     UnknownEscapeSeqError, //unknown escape sequence
     InvalidIdentifierNameError, //invalid identifier name
     InvalidOperationError, //invalid operation error
+    StrFmtSyntaxError, //unable to format expression inside string due to syntax error
 }
 
 #[derive(Debug, Clone)]
