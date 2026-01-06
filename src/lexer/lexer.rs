@@ -463,7 +463,9 @@ impl Lexer {
                 }
             },
             LexMode::StringMode | LexMode::FmtMode { stage: false, open: true } => {
-                self.tokens.push(Token::Literal(Literal::Str(self.buffer.clone())));
+                if !self.buffer.is_empty() {
+                    self.tokens.push(Token::Literal(Literal::Str(self.buffer.clone())));
+                }
             },
             _ => { /*should ideally not happen and panic instead, but leaving it blank for now*/ },
         }
