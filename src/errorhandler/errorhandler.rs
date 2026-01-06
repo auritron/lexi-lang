@@ -1,6 +1,7 @@
 use std::fmt;
 use std::fmt::Display;
 
+use crate::lexer::lexer::*;
 use crate::lexer::tokenlist::*;
 use crate::errorhandler::errorlist::*;
 

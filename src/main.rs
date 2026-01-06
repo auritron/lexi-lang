@@ -1,6 +1,6 @@
 use std::fs;
 
-use lexi_lang::lexer::lexer::Lexer;
+use lexi_lang::lexer::lexer::*;
 use lexi_lang::lexer::tokenlist::*;
 use lexi_lang::errorhandler::errorhandler::*;
 use lexi_lang::errorhandler::errorlist::*;

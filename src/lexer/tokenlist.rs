@@ -30,7 +30,7 @@ pub enum Literal {
 
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Keyword {
 
     //functional and definitions
@@ -55,7 +55,7 @@ pub enum Keyword {
 
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DataType {
 
     //integer
@@ -108,7 +108,7 @@ impl std::fmt::Display for DataType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum OpType {
 
     // unary and binary basic ops
@@ -151,8 +151,8 @@ pub enum OpType {
     LTEq,       // <=
 
     // format
-    FmtOpen,    // {
-    FmtClose,   // }
+    FmtOpen,    // ${
+    FmtClose,   // $}
 
     // punctuations and symbols
     Period,        // .
@@ -313,5 +313,6 @@ pub const STR_QUOTES: char = '"';
 pub const COMMENT_CHAR: char = '#';
 pub const DECIMAL_CHAR: char = '.';
 pub const UNDERSCORE: char = '_';
+pub const FMT_INDICATOR: char = '$';
 pub const FMT_OPEN: char = '{';
 pub const FMT_CLOSE: char = '}';
