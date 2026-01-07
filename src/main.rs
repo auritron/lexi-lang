@@ -6,9 +6,17 @@ use lexi_lang::errorhandler::errorhandler::*;
 use lexi_lang::errorhandler::errorlist::*;
 
 fn main() {
-    let contents: String = fs::read_to_string("progs/basic.lexi")
+    let contents: String = fs::read_to_string("progs/demo.lexi")
         .expect("Failed to read file!");
     let mut lexer = Lexer::init();
+    let mut token_list: Vec<TokenKind> = Vec::new();
+    // match lexer.tokenize(contents) {
+    //     Ok(t) => token_list = t.into_iter().map(|item| item.token.unwrap()).collect(),
+    //     Err(e) => {
+    //         eprintln!("{}", e);
+    //         std::process::exit(1);
+    //     },
+    // }
     let mut token_list: Vec<Token> = Vec::new();
     match lexer.tokenize(contents) {
         Ok(t) => token_list = t,

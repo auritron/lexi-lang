@@ -49,6 +49,57 @@ pub enum FmtResult {
     FmtOpenSuccess,
     FmtCloseSuccess,
     FmtFailAndPush,
+    FmtChainedIndic,
+}
+
+#[derive(Debug, Clone)]
+pub struct Token {
+    pub token: Option<TokenKind>,
+    start_pos: Option<Position>,
+    end_pos: Option<Position>,
+}
+
+impl Token {
+
+    fn new(start_line: usize, start_column: usize) -> Self {
+        Self {
+            token: None,
+            start_pos: Some(Position::new(start_line, start_column)),
+            end_pos: None,
+        }
+    }
+
+    fn end_token(&mut self, new_token: TokenKind, end_line: usize, end_column: usize) {
+        self.token = Some(new_token);
+        self.end_pos = Some(Position::new(end_line, end_column));
+    }
+
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Position {
+    line: usize,
+    column: usize,
+}
+
+impl Position {
+
+    fn new(line: usize, column: usize) -> Self {
+        Self {
+            line: line,
+            column: column,
+        }
+    }
+
+    fn update_pos(&mut self) {
+        self.column += 1;
+    }
+
+    fn new_line(&mut self) {
+        self.line += 1;
+        self.column = 1; 
+    }
+
 }
 
 pub struct Lexer {
@@ -57,10 +108,10 @@ pub struct Lexer {
     prev_mode: LexMode, //previous lexing mode
     lex_state: LexState, //state of the lexer
     buffer: String, //temporary string for tokenization
+    cur_token: Option<Token>, //current token that's being built before emission
     escape_mode: u8, //if char is escape character '\'
     fmt_count: usize, //count of format strings, +1 for every open fmt (when in a string), -1 for every closed
-    line: usize, //line of the character
-    column: usize, //column of the character
+    position: Position, //position of the character, line and column
 }
 
 impl Lexer {
@@ -72,22 +123,26 @@ impl Lexer {
             prev_mode: LexMode::NullMode,
             lex_state: LexState::Idle,
             buffer: String::new(),
+            cur_token: None,
             escape_mode: 0,
             fmt_count: 0,
-            line: 1,
-            column: 1,
+            position: Position::new(1, 1),
         }
     }
 
     pub fn tokenize(&mut self, mut input: String) -> Result<Vec<Token>, PreRuntimeError> {
         
-        input.push(' ');
-        let charlist = input.chars(); // push ' ' to push the final character to treat as nullmode
+        input.push(' '); //push sentinal value to guarantee final token emission
+        let charlist = input.chars();
 
         for c in charlist {
 
-            //1. Set the new LexMode
-            self.set_lexmode(c)?;
+            //println!("here: {:?}, {:?}, {}, {}", self.lex_mode, self.cur_token, self.position.line, self.position.column);
+
+            //1. Set the new LexMode and initialize token if uninitialized and not NullMode/CommentMode
+            if self.set_lexmode(c)? {
+                self.cur_token = Some(Token::new(self.position.line, self.position.column));
+            }
 
             //2. Set the corresponding LexState
             self.set_lexstate()?;
@@ -97,17 +152,10 @@ impl Lexer {
 
             //4. Update line and char
             if c == '\n' {
-                    self.line += 1;
-                    self.column = 1;
+                    self.position.new_line();
                 } else {
-                    self.column += 1;
+                    self.position.update_pos();
                 }
-
-            // print!("col: {}\t", &self.column);
-            // print!("char: {}\t", c);
-            // print!("lex_mode: {}\t", &self.lex_mode);
-            // print!("prev_mode: {}\t", &self.prev_mode);
-            // println!("fmt_count: {}", &self.fmt_count);
 
             //5. Update previous LexMode
             self.prev_mode = self.lex_mode;
@@ -118,18 +166,23 @@ impl Lexer {
             return Err(self.raise_error(SyntaxErrorType::UnTermStrLitError));
         }
 
-        self.tokens.push(Token::EOF);
+        self.tokens.push(Token {
+            token: Some(TokenKind::EOF),
+            start_pos: Some(Position::new(self.position.line, self.position.column)),
+            end_pos: Some(Position::new(self.position.line, self.position.column)),
+        });
         Ok(self.tokens.clone())
 
     }
 
-    fn set_lexmode(&mut self, c: char) -> Result<(), PreRuntimeError> {
+    fn set_lexmode(&mut self, c: char) -> Result<bool, PreRuntimeError> {
 
         if self.lex_mode == LexMode::CommentMode { // CommentMode
 
             if c == '\n' {
                 self.lex_mode = LexMode::NullMode;
             }
+            return Ok(false);
 
         } else {
             
@@ -205,6 +258,7 @@ impl Lexer {
                 if c == tokenlist::COMMENT_CHAR { //set comment mode
 
                     self.lex_mode = LexMode::CommentMode;
+                    return Ok(false);
 
                 } else if c.is_numeric() && self.lex_mode != LexMode::WordMode { // convert int numliteral
 
@@ -244,6 +298,11 @@ impl Lexer {
                 } else if tokenlist::WHITESPACE_CHARS.contains(&c) { // set to null mode when whitespace type char
 
                     self.lex_mode = LexMode::NullMode;
+                    if matches!(self.prev_mode, LexMode::NullMode | LexMode::CommentMode) {
+                        return Ok(false);
+                    } else {
+                        return Ok(true);
+                    }
 
                 } else { //unknown character, lexing will be terminated later in the cycle
 
@@ -254,7 +313,7 @@ impl Lexer {
             }
 
         }
-        Ok(())
+        Ok(self.cur_token.is_none())
 
     }
 
@@ -302,16 +361,17 @@ impl Lexer {
 
             //format modes
 
-            //SFOT - CHECK AGAIN
+            //SFOT
             LexMode::FmtMode { stage: false, open: true } => match &self.lex_mode {
                 LexMode::FmtMode { stage: true, open: true } => self.lex_state = LexState::FmtResult(FmtResult::FmtOpenSuccess),
-                LexMode::StringMode | LexMode::FmtMode { stage: false, open: true } => self.lex_state = LexState::FmtResult(FmtResult::FmtOpenFail),
+                LexMode::StringMode => self.lex_state = LexState::FmtResult(FmtResult::FmtOpenFail),
+                LexMode::FmtMode { stage: false, open: true } => self.lex_state = LexState::FmtResult(FmtResult::FmtChainedIndic),
                 LexMode::QuotesMode(false) => self.lex_state = LexState::FmtResult(FmtResult::FmtFailAndPush), //push $, emit token, push quotes
                 LexMode::UnknownMode => { return Err(self.raise_error(SyntaxErrorType::UnknownCharError)); },
                 _ => self.panic(),
             },
 
-            //SFOF - CHECK AGAIN
+            //SFOF
             LexMode::FmtMode { stage: false, open: false } => match &self.lex_mode {
                 LexMode::FmtMode { stage: true, open: false } => self.lex_state = LexState::FmtResult(FmtResult::FmtCloseSuccess),
                 LexMode::UnknownMode => { return Err(self.raise_error(SyntaxErrorType::UnknownCharError)); },
@@ -393,17 +453,29 @@ impl Lexer {
             },
             LexState::FmtResult(FmtResult::FmtOpenSuccess) => {
                 self.emit_token()?;
-                self.tokens.push(Token::Operator(OpType::FmtOpen));
+                self.tokens.push(Token {
+                    token: Some(TokenKind::Operator(OpType::FmtOpen)),
+                    start_pos: Some(Position::new(self.position.line, self.position.column)), // have to fix this to span the entire fmt
+                    end_pos: Some(Position::new(self.position.line, self.position.column)),
+                });
                 Ok(())
             },
             LexState::FmtResult(FmtResult::FmtCloseSuccess) => {
-                self.tokens.push(Token::Operator(OpType::FmtClose));
+                self.tokens.push(Token {
+                    token: Some(TokenKind::Operator(OpType::FmtClose)),
+                    start_pos: Some(Position::new(self.position.line, self.position.column)), // have to fix this to span the entire fmt
+                    end_pos: Some(Position::new(self.position.line, self.position.column)),
+                });
                 Ok(())
             },
             LexState::FmtResult(FmtResult::FmtFailAndPush) => {
                 self.push_char(tokenlist::FMT_INDICATOR)?;
                 self.emit_token()?;
                 self.push_char(c)?;
+                Ok(())
+            },
+            LexState::FmtResult(FmtResult::FmtChainedIndic) => {
+                self.push_char(tokenlist::FMT_INDICATOR)?;
                 Ok(())
             },
         }
@@ -429,47 +501,53 @@ impl Lexer {
     }
 
     fn emit_token(&mut self) -> Result<(), PreRuntimeError> {
-        match &self.prev_mode {
-            LexMode::WordMode => {
-                if let Some(keyword_token) = tokenlist::KEYWORDS.get(self.buffer.as_str()) { self.tokens.push(keyword_token.clone()); }
-                else if let Some(datatype_token) = tokenlist::DATATYPES.get(self.buffer.as_str()) { self.tokens.push(datatype_token.clone()); }
-                else if let Some(boolean_token) = tokenlist::BOOL_VALUES.get(self.buffer.as_str()) { self.tokens.push(boolean_token.clone()); }
-                else { self.tokens.push(Token::Identifier(self.buffer.clone())); }
-            },
-            LexMode::OpOrPuncMode(_) => {
-                if let Some(op) = tokenlist::OPS_AND_PUNCS.get(self.buffer.as_str()) { self.tokens.push(op.clone()); }
-                else { return Err(self.raise_error(SyntaxErrorType::InvalidOperationError)); }
-            },
-            LexMode::QuotesMode(_) => {
-                let thisschar = self.buffer.chars().next();
-                if let Some(ch) = thisschar {
-                    if ch == tokenlist::STR_QUOTES { self.tokens.push(Token::Operator(OpType::StrQuotes)); }
-                    else if ch == tokenlist::CHAR_QUOTES { self.tokens.push(Token::Operator(OpType::CharQuotes)); }
-                    else { self.panic(); }
-                } else {
-                    self.panic();
-                }
-            },
-            LexMode::IntLiteralMode => {
-                match self.buffer.parse::<u64>() {
-                    Ok(val) => self.tokens.push(Token::Literal(Literal::Int(val))),
-                    Err(_) => { return Err(self.raise_error(SyntaxErrorType::UnknownTypeError(DataType::Int64))); },
-                }
-            },
-            LexMode::FloatLiteralMode => {
-                match self.buffer.parse::<f64>() {
-                    Ok(val) => self.tokens.push(Token::Literal(Literal::Float(val))),
-                    Err(_) => { return Err(self.raise_error(SyntaxErrorType::UnknownTypeError(DataType::Float64))); },
-                }
-            },
-            LexMode::StringMode | LexMode::FmtMode { stage: false, open: true } => {
-                if !self.buffer.is_empty() {
-                    self.tokens.push(Token::Literal(Literal::Str(self.buffer.clone())));
-                }
-            },
-            _ => { /*should ideally not happen and panic instead, but leaving it blank for now*/ },
+        if let Some(this_token) = self.cur_token.as_mut() {
+            match &self.prev_mode {
+                LexMode::WordMode => {
+                    if let Some(keyword_token) = tokenlist::KEYWORDS.get(self.buffer.as_str()) { this_token.end_token(keyword_token.clone(), self.position.line, self.position.column); }
+                    else if let Some(datatype_token) = tokenlist::DATATYPES.get(self.buffer.as_str()) { this_token.end_token(datatype_token.clone(), self.position.line, self.position.column); }
+                    else if let Some(boolean_token) = tokenlist::BOOL_VALUES.get(self.buffer.as_str()) { this_token.end_token(boolean_token.clone(), self.position.line, self.position.column); }
+                    else { this_token.end_token(TokenKind::Identifier(self.buffer.clone()), self.position.line, self.position.column); }
+                },
+                LexMode::OpOrPuncMode(_) => {
+                    if let Some(op) = tokenlist::OPS_AND_PUNCS.get(self.buffer.as_str()) { this_token.end_token(op.clone(), self.position.line, self.position.column); }
+                    else { return Err(self.raise_error(SyntaxErrorType::InvalidOperationError)); }
+                },
+                LexMode::QuotesMode(_) => {
+                    let thisschar = self.buffer.chars().next();
+                    if let Some(ch) = thisschar {
+                        if ch == tokenlist::STR_QUOTES { this_token.end_token(TokenKind::Operator(OpType::StrQuotes), self.position.line, self.position.column); }
+                        else if ch == tokenlist::CHAR_QUOTES { this_token.end_token(TokenKind::Operator(OpType::CharQuotes), self.position.line, self.position.column); }
+                        else { self.panic(); }
+                    } else {
+                        self.panic();
+                    }
+                },
+                LexMode::IntLiteralMode => {
+                    match self.buffer.parse::<u64>() {
+                        Ok(val) => this_token.end_token(TokenKind::Literal(Literal::Int(val)), self.position.line, self.position.column),
+                        Err(_) => { return Err(self.raise_error(SyntaxErrorType::UnknownTypeError(DataType::Int64))); },
+                    }
+                },
+                LexMode::FloatLiteralMode => {
+                    match self.buffer.parse::<f64>() {
+                        Ok(val) => this_token.end_token(TokenKind::Literal(Literal::Float(val)), self.position.line, self.position.column),
+                        Err(_) => { return Err(self.raise_error(SyntaxErrorType::UnknownTypeError(DataType::Float64))); },
+                    }
+                },
+                LexMode::StringMode | LexMode::FmtMode { stage: false, open: true } => {
+                    if !self.buffer.is_empty() {
+                        this_token.end_token(TokenKind::Literal(Literal::Str(self.buffer.clone())), self.position.line, self.position.column);
+                    }
+                },
+                _ => { /*should ideally not happen and panic instead, but leaving it blank for now*/ },
+            }
+            self.tokens.push(self.cur_token.take().unwrap());
+            self.buffer.clear();
+        } else {
+            //println!("no! {}, {}", self.position.line, self.position.column);
+            self.panic();
         }
-        self.buffer.clear();
         Ok(())
     }
 
@@ -477,20 +555,20 @@ impl Lexer {
     fn raise_error(&self, error_type: SyntaxErrorType) -> PreRuntimeError {
         PreRuntimeError {
             errortype: PreRuntimeErrorType::SyntaxError(error_type),
-            line: self.line,
-            column: self.column,
+            line: self.position.line,
+            column: self.position.column,
         }
     }
 
     fn panic(&self) {
         panic!("This message shouldn't show up. If it does, then something is seriously wrong. Check your code! Here's some helpful info :D - 
-        \nLine: {}, 
-        \nColumn: {}, 
-        \nTokens: {:?}, 
-        \nbuffer: {}, 
-        \nPrevMode: {}, 
+        \nLine: {} 
+        \nColumn: {} 
+        \nTokens: {:?} 
+        \nbuffer: {} 
+        \nPrevMode: {} 
         \nLexMode: {}", 
-        self.line, self.column, self.tokens, self.buffer, self.prev_mode, self.lex_mode);
+        self.position.line, self.position.column, self.tokens, self.buffer, self.prev_mode, self.lex_mode);
     }
 
 }

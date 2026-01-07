@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Token {
+pub enum TokenKind {
 
     // identifiers and literals
     Identifier(String),
@@ -179,40 +179,40 @@ pub enum OpType {
 
 }
 
-pub static KEYWORDS: LazyLock<HashMap<&'static str, Token>> = LazyLock::new(|| {
+pub static KEYWORDS: LazyLock<HashMap<&'static str, TokenKind>> = LazyLock::new(|| {
     let mut map = HashMap::new();
 
-    map.insert("func", Token::Keyword(Keyword::Func));
-    map.insert("var", Token::Keyword(Keyword::Var));
-    map.insert("param", Token::Keyword(Keyword::Param));
-    map.insert("const", Token::Keyword(Keyword::Const));
-    map.insert("return", Token::Keyword(Keyword::Return));
-    map.insert("if", Token::Keyword(Keyword::If));
-    map.insert("elif", Token::Keyword(Keyword::Elif));
-    map.insert("else", Token::Keyword(Keyword::Else));
-    map.insert("while", Token::Keyword(Keyword::While));
-    map.insert("do", Token::Keyword(Keyword::Do));
-    map.insert("for", Token::Keyword(Keyword::For));
-    map.insert("in", Token::Keyword(Keyword::In));
+    map.insert("func", TokenKind::Keyword(Keyword::Func));
+    map.insert("var", TokenKind::Keyword(Keyword::Var));
+    map.insert("param", TokenKind::Keyword(Keyword::Param));
+    map.insert("const", TokenKind::Keyword(Keyword::Const));
+    map.insert("return", TokenKind::Keyword(Keyword::Return));
+    map.insert("if", TokenKind::Keyword(Keyword::If));
+    map.insert("elif", TokenKind::Keyword(Keyword::Elif));
+    map.insert("else", TokenKind::Keyword(Keyword::Else));
+    map.insert("while", TokenKind::Keyword(Keyword::While));
+    map.insert("do", TokenKind::Keyword(Keyword::Do));
+    map.insert("for", TokenKind::Keyword(Keyword::For));
+    map.insert("in", TokenKind::Keyword(Keyword::In));
     map
 });
 
-pub static DATATYPES: LazyLock<HashMap<&'static str, Token>> = LazyLock::new(|| {
+pub static DATATYPES: LazyLock<HashMap<&'static str, TokenKind>> = LazyLock::new(|| {
     let mut map = HashMap::new();
 
-    map.insert("int8", Token::DataType(DataType::Int8));
-    map.insert("int16", Token::DataType(DataType::Int16));
-    map.insert("int32", Token::DataType(DataType::Int32));
-    map.insert("int64", Token::DataType(DataType::Int64));
-    map.insert("uint8", Token::DataType(DataType::UInt8));
-    map.insert("uint16", Token::DataType(DataType::UInt16));
-    map.insert("uint32", Token::DataType(DataType::UInt32));
-    map.insert("uint64", Token::DataType(DataType::UInt64));
-    map.insert("float32", Token::DataType(DataType::Float32));
-    map.insert("float64", Token::DataType(DataType::Float64));
-    map.insert("bool", Token::DataType(DataType::Bool));
-    map.insert("char", Token::DataType(DataType::Char));
-    map.insert("str", Token::DataType(DataType::Str));
+    map.insert("int8", TokenKind::DataType(DataType::Int8));
+    map.insert("int16", TokenKind::DataType(DataType::Int16));
+    map.insert("int32", TokenKind::DataType(DataType::Int32));
+    map.insert("int64", TokenKind::DataType(DataType::Int64));
+    map.insert("uint8", TokenKind::DataType(DataType::UInt8));
+    map.insert("uint16", TokenKind::DataType(DataType::UInt16));
+    map.insert("uint32", TokenKind::DataType(DataType::UInt32));
+    map.insert("uint64", TokenKind::DataType(DataType::UInt64));
+    map.insert("float32", TokenKind::DataType(DataType::Float32));
+    map.insert("float64", TokenKind::DataType(DataType::Float64));
+    map.insert("bool", TokenKind::DataType(DataType::Bool));
+    map.insert("char", TokenKind::DataType(DataType::Char));
+    map.insert("str", TokenKind::DataType(DataType::Str));
     map
 });
 
@@ -220,64 +220,64 @@ pub static OPS_AND_PUNCS_CHARS: LazyLock<HashSet<char>> = LazyLock::new(|| {
     HashSet::from(['+', '/', '%', '|', '&', '^', '-', '*', '!', '>', '<', '~', '.', ':', ';', ',', '(', ')', '{', '}', '[', ']', '=', '`'])
 });
 
-pub static OPS_AND_PUNCS: LazyLock<HashMap<&'static str, Token>> = LazyLock::new(|| {
+pub static OPS_AND_PUNCS: LazyLock<HashMap<&'static str, TokenKind>> = LazyLock::new(|| {
     let mut map = HashMap::new();
 
     //single 
 
     //operations
-    map.insert("+", Token::Operator(OpType::Plus));
-    map.insert("/", Token::Operator(OpType::Div));
-    map.insert("%", Token::Operator(OpType::Mod));
-    map.insert("|", Token::Operator(OpType::BitOr));
-    map.insert("&", Token::Operator(OpType::BitAnd));
-    map.insert("^", Token::Operator(OpType::BitXor));
-    map.insert("-", Token::Operator(OpType::Minus));
-    map.insert("*", Token::Operator(OpType::Mul));
-    map.insert("!", Token::Operator(OpType::BitNot));
-    map.insert(">", Token::Operator(OpType::Greater));
-    map.insert("<", Token::Operator(OpType::Lesser));
-    map.insert("~", Token::DataType(DataType::Void)); //exception
+    map.insert("+", TokenKind::Operator(OpType::Plus));
+    map.insert("/", TokenKind::Operator(OpType::Div));
+    map.insert("%", TokenKind::Operator(OpType::Mod));
+    map.insert("|", TokenKind::Operator(OpType::BitOr));
+    map.insert("&", TokenKind::Operator(OpType::BitAnd));
+    map.insert("^", TokenKind::Operator(OpType::BitXor));
+    map.insert("-", TokenKind::Operator(OpType::Minus));
+    map.insert("*", TokenKind::Operator(OpType::Mul));
+    map.insert("!", TokenKind::Operator(OpType::BitNot));
+    map.insert(">", TokenKind::Operator(OpType::Greater));
+    map.insert("<", TokenKind::Operator(OpType::Lesser));
+    map.insert("~", TokenKind::DataType(DataType::Void)); //exception
 
     //punctuations
-    map.insert(".", Token::Operator(OpType::Period));
-    map.insert(":", Token::Operator(OpType::Colon));
-    map.insert(";", Token::Operator(OpType::Semicolon));
-    map.insert(",", Token::Operator(OpType::Comma));
-    map.insert("(", Token::Operator(OpType::LParen));
-    map.insert(")", Token::Operator(OpType::RParen));
-    map.insert("{", Token::Operator(OpType::LBrace));
-    map.insert("}", Token::Operator(OpType::RBrace));
-    map.insert("[", Token::Operator(OpType::LSquare));
-    map.insert("]", Token::Operator(OpType::RSquare));
-    map.insert("=", Token::Operator(OpType::Assign));
-    map.insert("`", Token::Operator(OpType::BackTick));
+    map.insert(".", TokenKind::Operator(OpType::Period));
+    map.insert(":", TokenKind::Operator(OpType::Colon));
+    map.insert(";", TokenKind::Operator(OpType::Semicolon));
+    map.insert(",", TokenKind::Operator(OpType::Comma));
+    map.insert("(", TokenKind::Operator(OpType::LParen));
+    map.insert(")", TokenKind::Operator(OpType::RParen));
+    map.insert("{", TokenKind::Operator(OpType::LBrace));
+    map.insert("}", TokenKind::Operator(OpType::RBrace));
+    map.insert("[", TokenKind::Operator(OpType::LSquare));
+    map.insert("]", TokenKind::Operator(OpType::RSquare));
+    map.insert("=", TokenKind::Operator(OpType::Assign));
+    map.insert("`", TokenKind::Operator(OpType::BackTick));
 
     //paired
 
     //operations
-    map.insert("**", Token::Operator(OpType::Exp));
-    map.insert("`!", Token::Operator(OpType::Not));
-    map.insert("`|", Token::Operator(OpType::Or));
-    map.insert("`&", Token::Operator(OpType::And));
-    map.insert("`^", Token::Operator(OpType::Xor));
-    map.insert("==", Token::Operator(OpType::Equal));
-    map.insert("!=", Token::Operator(OpType::NotEqual));
-    map.insert(">=", Token::Operator(OpType::GTEq));
-    map.insert("<=", Token::Operator(OpType::LTEq));
-    map.insert("<<", Token::Operator(OpType::ShiftLeft));
-    map.insert(">>", Token::Operator(OpType::ShiftRight));
-    map.insert("+=", Token::Operator(OpType::PlusAssign));
-    map.insert("-=", Token::Operator(OpType::SubAssign));
-    map.insert("*=", Token::Operator(OpType::MulAssign));
-    map.insert("/=", Token::Operator(OpType::DivAssign));
+    map.insert("**", TokenKind::Operator(OpType::Exp));
+    map.insert("`!", TokenKind::Operator(OpType::Not));
+    map.insert("`|", TokenKind::Operator(OpType::Or));
+    map.insert("`&", TokenKind::Operator(OpType::And));
+    map.insert("`^", TokenKind::Operator(OpType::Xor));
+    map.insert("==", TokenKind::Operator(OpType::Equal));
+    map.insert("!=", TokenKind::Operator(OpType::NotEqual));
+    map.insert(">=", TokenKind::Operator(OpType::GTEq));
+    map.insert("<=", TokenKind::Operator(OpType::LTEq));
+    map.insert("<<", TokenKind::Operator(OpType::ShiftLeft));
+    map.insert(">>", TokenKind::Operator(OpType::ShiftRight));
+    map.insert("+=", TokenKind::Operator(OpType::PlusAssign));
+    map.insert("-=", TokenKind::Operator(OpType::SubAssign));
+    map.insert("*=", TokenKind::Operator(OpType::MulAssign));
+    map.insert("/=", TokenKind::Operator(OpType::DivAssign));
     
     //punctuations
-    map.insert("->", Token::Operator(OpType::Arrow));
-    map.insert("()", Token::Operator(OpType::ParenClosure));
-    map.insert("[]", Token::Operator(OpType::SquareClosure));
-    map.insert("{}", Token::Operator(OpType::BraceClosure));
-    map.insert("<>", Token::Operator(OpType::AngledClosure));
+    map.insert("->", TokenKind::Operator(OpType::Arrow));
+    map.insert("()", TokenKind::Operator(OpType::ParenClosure));
+    map.insert("[]", TokenKind::Operator(OpType::SquareClosure));
+    map.insert("{}", TokenKind::Operator(OpType::BraceClosure));
+    map.insert("<>", TokenKind::Operator(OpType::AngledClosure));
 
     map
 });
@@ -295,11 +295,11 @@ pub static ESCAPE_SEQ: LazyLock<HashMap<char, char>> = LazyLock::new(|| {
     map
 });
 
-pub static BOOL_VALUES: LazyLock<HashMap<&'static str, Token>> = LazyLock::new(|| {
+pub static BOOL_VALUES: LazyLock<HashMap<&'static str, TokenKind>> = LazyLock::new(|| {
     let mut map = HashMap::new();
 
-    map.insert("true", Token::Literal(Literal::Bool(true)));
-    map.insert("false", Token::Literal(Literal::Bool(false)));
+    map.insert("true", TokenKind::Literal(Literal::Bool(true)));
+    map.insert("false", TokenKind::Literal(Literal::Bool(false)));
     map
 });
 
