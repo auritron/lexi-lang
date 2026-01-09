@@ -542,10 +542,13 @@ impl Lexer {
                 },
                 _ => { /*should ideally not happen and panic instead, but leaving it blank for now*/ },
             }
-            self.tokens.push(self.cur_token.take().unwrap());
+            let finished_token = self.cur_token.take().unwrap();
+            if finished_token.token.is_some() { //push non null tokens
+                self.tokens.push(finished_token);
+            }
             self.buffer.clear();
         } else {
-            //println!("no! {}, {}", self.position.line, self.position.column);
+            //println!("error! {}, {}", self.position.line, self.position.column);
             self.panic();
         }
         Ok(())
